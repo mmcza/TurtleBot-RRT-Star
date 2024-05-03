@@ -12,6 +12,14 @@
       - [1. Create the workspace and clone the repository](#1-create-the-workspace-and-clone-the-repository-1)
       - [2. Build the container](#2-build-the-container)
       - [3. Start the container](#3-start-the-container)
+  - [2. Running the simulation](#2-running-the-simulation)
+    - [Change the used path planning plugin](#change-the-used-path-planning-plugin)
+    - [Source the ROS files](#source-the-ros-files)
+    - [Launch the simulation](#launch-the-simulation)
+    - [Selecting goal and running the robot](#selecting-goal-and-running-the-robot)
+    - [TODO: add a gif](#todo-add-a-gif)
+  - [5. Encountered issues and solutions](#5-encountered-issues-and-solutions)
+    - [Gazebo running slowly](#gazebo-running-slowly)
 
 
 ## 1. Installation
@@ -76,3 +84,58 @@ bash start_container.sh
 
 > [!NOTE]
 > Dockerfile and script for running container are based on [Rafał Staszak's repository](https://github.com/RafalStaszak/NIMPRA_Docker/)
+
+## 2. Running the simulation
+
+> [!NOTE]
+> Currently in this repositorium there is a tutorial package from [navigation tutorial](https://navigation.ros.org/plugin_tutorials/docs/writing_new_nav2planner_plugin.html)
+
+### Change the used path planning plugin
+
+
+In general 
+```
+cp /path/to/turtlebot_ws/src/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml
+```
+If you're using the Docker container
+
+```
+cp ~/Shared/src/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml
+```
+
+### Source the ROS files
+
+```
+source /opt/ros/humble/setup.bash
+```
+
+### Launch the simulation
+```
+ros2 launch turtlebot4_ignition_bringup turtlebot4_ignition.launch.py nav2:=true slam:=false localization:=true rviz:=true
+```
+> [!NOTE]
+> Here is an issue - when I add flag `params_file:=~/Shared/src/TurtleBot-RRT-Star/nav2_params.yaml` it says `No such file or directory` and currently I have no idea how to solve it - that's why I override the file inside `/opt/ros/humble/share/nav2_bringup/params/`. 
+
+### Selecting goal and running the robot
+
+Once the gazebo and rviz are running, you have to press the `play` button in bottom left corner in gazebo.
+
+After that in rviz you have to select the starting position of robot using `2D Pose Estimate` button on top of the window and clicking in proper location and use the arrow to display robot's orientation. To select robot's destination click `Nav2 Goal` button and select the desired point on the map.
+
+### TODO: add a gif
+
+Now you can see that the robot is moving towards the goal and you can see the planned path in rviz.
+
+## 5. Encountered issues and solutions
+
+### Gazebo running slowly
+
+The issue was that the simulation in Gazebo was running really slowly - around 10-15% RTF (the simulation was running approx. 7-10 times slower than real time).
+
+The solution is to change the PRIME Profiles in NVIDIA Settings to Performance Mode (as suggested [in this reply](https://github.com/turtlebot/turtlebot4_simulator/issues/38#issuecomment-1548451019)). To solve this problem you need to type the following command in host system:
+
+```
+nvidia-settings
+```
+
+After rebooting the computer, RTF went up to a level of about 80-95%.
