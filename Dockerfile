@@ -30,10 +30,9 @@ RUN apt-get update -q && \
         iputils-ping \
         terminator \
         ros-dev-tools && \
-    sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list' && \
-    wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add - && \
-    apt-get install -y ignition-fortress && \
-    apt-get install -y ros-humble-turtlebot4-simulator && \
+    apt-get install -y ros-humble-turtlebot3-gazebo && \
+    apt-get install -y ros-humble-nav2-bringup && \
+    apt-get install -y ros-humble-navigation2 && \
     apt-get autoclean -y && \
     apt-get autoremove -y && \
     apt-get clean && \
