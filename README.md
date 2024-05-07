@@ -13,12 +13,15 @@
       - [2. Build the container](#2-build-the-container)
       - [3. Start the container](#3-start-the-container)
   - [2. Running the simulation](#2-running-the-simulation)
+    - [Override the params file](#override-the-params-file)
     - [Workspace preparation](#workspace-preparation)
-    - [Run the simulation](#run-the-simulation)
+    - [Building the package](#building-the-package)
+    - [Launching the simulation](#launching-the-simulation)
   - [3. About the RRT\* Algorithm](#3-about-the-rrt-algorithm)
   - [4. RRT\* Algorithm Implementation](#4-rrt-algorithm-implementation)
   - [5. Encountered issues and solutions](#5-encountered-issues-and-solutions)
     - [Gazebo not starting](#gazebo-not-starting)
+    - [Unable to use custom plugin for Nav2 path planning](#unable-to-use-custom-plugin-for-nav2-path-planning)
   - [6. Reference](#6-reference)
 
 
@@ -153,8 +156,15 @@ or using a Docker container with clean system.
 
 ### Unable to use custom plugin for Nav2 path planning
 
+This issue (caused by wrong timestamps) made that it was impossible to set initial pose of the robot (and as a result to plan a path).
+
+Example of the error message:
+```
+[component_container_isolated-6] [WARN] [1715109253.077329208] [amcl]: Failed to transform initial pose in time (Lookup would require extrapolation into the future.  Requested time 1715109253.077081 but the latest data is at time 70.142000, when looking up transform from frame [odom] to frame [base_footprint])
+```
 
 
+Solution was (as mentioned in [this comment](https://github.com/open-navigation/navigation2_tutorials/issues/25#issuecomment-1179464652)) to comment in the cpp file the lines that captured time.
 ## 6. Reference
 
 <a id="1">[1]</a>
