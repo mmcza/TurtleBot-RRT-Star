@@ -87,6 +87,15 @@ bash start_container.sh
 > [!NOTE]
 > Currently in this repositorium there is a tutorial package from [navigation tutorial](https://navigation.ros.org/plugin_tutorials/docs/writing_new_nav2planner_plugin.html)
 
+### Override the params file
+```
+cp /path/to/the/repository/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml
+```
+Example: in Docker it is:
+```
+cp ~/Shared/src/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml
+```
+
 ### Workspace preparation
 
 ```
@@ -101,13 +110,22 @@ export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gaz
 ```
 source /usr/share/gazebo/setup.bash
 ```
+
+### Building the package
+When inside the workspace:
+```
+colcon build --symlink-install
+```
+
 ```
 source /opt/ros/humble/setup.bash
 ```
-### Run the simulation
+
+
+### Launching the simulation
 To start the simulation you need to execute the following command
 ```
-ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False
+ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False params_file:=/opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml 
 ```
 It may take some time to start the Gazebo (if it's first time running than even more) and once it's working you have to check in the Gazebo where on the map the robot is located and in RVIZ click `2D Pose Estimate` button and later place it in the place of the robot (adjust the arrow to show the orientation of the robot). After that click `Nav2 Goal` and once again click on the map (you can adjust the end orientation with the arrow). After that the robot should start moving (and in RVIZ you should see the planned path).
 
@@ -132,6 +150,10 @@ Solution might be using the following command
 source /usr/share/gazebo/setup.bash
 ```
 or using a Docker container with clean system.
+
+### Unable to use custom plugin for Nav2 path planning
+
+
 
 ## 6. Reference
 
