@@ -124,6 +124,9 @@ colcon build --symlink-install
 source /opt/ros/humble/setup.bash
 ```
 
+```
+source install/setup.bash
+```
 
 ### Launching the simulation
 To start the simulation you need to execute the following command
