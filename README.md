@@ -22,6 +22,7 @@
   - [5. Encountered issues and solutions](#5-encountered-issues-and-solutions)
     - [Gazebo not starting](#gazebo-not-starting)
     - [Unable to use custom plugin for Nav2 path planning](#unable-to-use-custom-plugin-for-nav2-path-planning)
+    - [Memory errors](#memory-errors)
   - [6. Reference](#6-reference)
 
 
@@ -88,7 +89,7 @@ bash start_container.sh
 ## 2. Running the simulation
 
 > [!NOTE]
-> Currently in this repositorium there is a tutorial package from [navigation tutorial](https://navigation.ros.org/plugin_tutorials/docs/writing_new_nav2planner_plugin.html)
+> Currently in this repositorium there is implemented the RRT Algorithm.
 
 ### Override the params file
 ```
@@ -137,7 +138,7 @@ It may take some time to start the Gazebo (if it's first time running than even 
 
 ## 3. About the RRT* Algorithm
 
-The difference between RRT* and default RRT Algorithm is the fact that defualt RRT has a graph structure and RRT* is a tree. This difference allows RRT* to rewire the nodes when new one appears and cost of going through it is lower than through an existing one. 
+The difference between RRT* and default RRT Algorithm is the fact that RRT* can rewire the nodes when new one appears and cost of going through it is lower than through an existing one. 
 
 Pseudocode for RRT* is shown below [[1]](#1).
 
@@ -166,8 +167,14 @@ Example of the error message:
 [component_container_isolated-6] [WARN] [1715109253.077329208] [amcl]: Failed to transform initial pose in time (Lookup would require extrapolation into the future.  Requested time 1715109253.077081 but the latest data is at time 70.142000, when looking up transform from frame [odom] to frame [base_footprint])
 ```
 
-
 Solution was (as mentioned in [this comment](https://github.com/open-navigation/navigation2_tutorials/issues/25#issuecomment-1179464652)) to comment in the cpp file the lines that captured time.
+
+### Memory errors
+
+The issue was that pointers were pointing address in a vector that could be relocated.
+
+The solution was to reserve the memory.
+
 ## 6. Reference
 
 <a id="1">[1]</a>
