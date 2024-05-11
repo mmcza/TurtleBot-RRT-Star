@@ -254,7 +254,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        inflation_radius: 0.55
+        inflation_radius: 0.2
       always_send_full_costmap: True
 
 map_server:
@@ -289,7 +289,7 @@ planner_server:
     use_sim_time: True
     GridBased:
       plugin: nav2_rrtstar_planner/RRTStar # For Galactic and later
-      interpolation_resolution: 0.1
+      interpolation_resolution: 0.01
 
 smoother_server:
   ros__parameters:

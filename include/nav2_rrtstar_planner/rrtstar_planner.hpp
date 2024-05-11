@@ -106,8 +106,9 @@ private:
 
   double interpolation_resolution_;
   std::vector<Vertex> tree_;
-  Vertex nearest_neighbor(double x, double y);
+  Vertex* nearest_neighbor(double x, double y);
   double calculate_distance(double x, double y, Vertex vertex);
+  bool connectible(Vertex start, Vertex end);
 
 };
 
