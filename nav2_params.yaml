@@ -283,12 +283,12 @@ planner_server:
     #   use_astar: false
     #   allow_unknown: true
 
-    planner_plugin_types: ['nav2_straightline_planner::StraightLine'] # For Foxy and earlier
+    planner_plugin_types: ['nav2_rrtstar_planner::RRTStar'] # For Foxy and earlier
     planner_plugin_ids: ['GridBased'] # For Foxy and earlier
     plugins: ['GridBased'] # For Galactic and later
     use_sim_time: True
     GridBased:
-      plugin: nav2_straightline_planner/StraightLine # For Galactic and later
+      plugin: nav2_rrtstar_planner/RRTStar # For Galactic and later
       interpolation_resolution: 0.1
 
 smoother_server:
