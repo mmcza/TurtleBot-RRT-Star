@@ -42,6 +42,9 @@
 #include <string>
 #include <memory>
 #include "nav2_util/node_utils.hpp"
+#include <random>
+#include <vector>
+#include <limits>
 
 #include "nav2_rrtstar_planner/rrtstar_planner.hpp"
 
@@ -58,6 +61,7 @@ void RRTStar::configure(
   tf_ = tf;
   costmap_ = costmap_ros->getCostmap();
   global_frame_ = costmap_ros->getGlobalFrameID();
+  max_iterations_ = 2000;
 
   // Parameter initialization
   nav2_util::declare_parameter_if_not_declared(
@@ -87,6 +91,26 @@ void RRTStar::deactivate()
     name_.c_str());
 }
 
+double RRTStar::calculate_distance(double x, double y, Vertex vertex)
+{
+  return sqrt(pow(vertex.x - x, 2) + pow(vertex.y - y, 2));
+}
+
+Vertex RRTStar::nearest_neighbor(double x, double y)
+{
+  Vertex nearest_vertex(0.0, 0.0);
+  double min_distance = std::numeric_limits<double>::infinity();
+
+  for (const auto vertex : tree_) {
+    double dist = calculate_distance(x, y, vertex);
+    if (dist < min_distance) {
+      min_distance = dist;
+      nearest_vertex = vertex;
+    }
+  }
+  return nearest_vertex;
+}
+
 nav_msgs::msg::Path RRTStar::createPlan(
   const geometry_msgs::msg::PoseStamped & start,
   const geometry_msgs::msg::PoseStamped & goal)
@@ -111,7 +135,7 @@ nav_msgs::msg::Path RRTStar::createPlan(
   global_path.poses.clear();
   global_path.header.stamp = node_->now();
   global_path.header.frame_id = global_frame_;
-  // calculating the number of loops for current value of interpolation_resolution_
+  //calculating the number of loops for current value of interpolation_resolution_
   int total_number_of_loop = std::hypot(
     goal.pose.position.x - start.pose.position.x,
     goal.pose.position.y - start.pose.position.y) /
@@ -119,7 +143,27 @@ nav_msgs::msg::Path RRTStar::createPlan(
   double x_increment = (goal.pose.position.x - start.pose.position.x) / total_number_of_loop;
   double y_increment = (goal.pose.position.y - start.pose.position.y) / total_number_of_loop;
 
-  for (int i = 0; i < total_number_of_loop; ++i) {
+  // setting up random position generator
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<>x_dis(-3.0, 3.0);
+  std::uniform_real_distribution<>y_dis(-3.0, 3.0);
+
+  // adding start position to the tree
+  Vertex start_vertex(start.pose.position.x, start.pose.position.y);
+  tree_.emplace_back(start_vertex);
+
+  // for (int i = 0; i < max_iterations_; ++i) {
+  for (int i=0; i< total_number_of_loop ; ++i) {
+    double rand_x = x_dis(gen);
+    double rand_y = y_dis(gen);
+    Vertex nearest_vertex = nearest_neighbor(rand_x, rand_y);
+    Vertex new_position(rand_x, rand_y);
+    tree_.emplace_back(new_position);
+    // RCLCPP_INFO(node_->get_logger(), "Random x position: %f", rand_x);
+    // RCLCPP_INFO(node_->get_logger(), "Random y position: %f", rand_y);
+
+    
     geometry_msgs::msg::PoseStamped pose;
     pose.pose.position.x = start.pose.position.x + x_increment * i;
     pose.pose.position.y = start.pose.position.y + y_increment * i;
@@ -129,7 +173,7 @@ nav_msgs::msg::Path RRTStar::createPlan(
     pose.pose.orientation.z = 0.0;
     pose.pose.orientation.w = 1.0;
     //pose.header.stamp = node_->now();
-    //pose.header.frame_id = global_frame_;
+    //pose.header.frame_id = global_frame_; 
     global_path.poses.push_back(pose);
   }
 

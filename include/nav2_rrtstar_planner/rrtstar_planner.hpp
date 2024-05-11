@@ -43,6 +43,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/point.hpp"
@@ -56,6 +57,12 @@
 
 namespace nav2_rrtstar_planner
 {
+
+struct Vertex {
+    double x, y, travel_cost;
+    Vertex* parent;
+    Vertex(double x_val, double y_val, Vertex* p = nullptr, double travel_distance = 0) : x(x_val), y(y_val), parent(p), travel_cost(travel_distance) {}
+};
 
 class RRTStar : public nav2_core::GlobalPlanner
 {
@@ -95,8 +102,13 @@ private:
 
   // The global frame of the costmap
   std::string global_frame_, name_;
+  int max_iterations_;
 
   double interpolation_resolution_;
+  std::vector<Vertex> tree_;
+  Vertex nearest_neighbor(double x, double y);
+  double calculate_distance(double x, double y, Vertex vertex);
+
 };
 
 }  // namespace nav2_rrtstar_planner
