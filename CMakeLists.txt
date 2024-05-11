@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(nav2_straightline_planner)
+project(nav2_rrtstar_planner)
 
 # Default to C99
 set(CMAKE_C_STANDARD 99)
@@ -49,7 +49,7 @@ set(dependencies
 )
 
 add_library(${library_name} SHARED
-  src/straight_line_planner.cpp
+  src/rrtstar_planner.cpp
 )
 
 ament_target_dependencies(${library_name}

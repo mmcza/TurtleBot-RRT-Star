@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>nav2_straightline_planner</name>
+  <name>nav2_rrtstar_planner</name>
   <version>1.0.0</version>
-  <description>Simple straight line planner.</description>
-  <maintainer email="shivaang14@gmail.com">Shivang Patel</maintainer>
+  <description>RRT Star path planner.</description>
+  <maintainer email="daria.kubacka@student.put.poznan.pl">Daria Kubacka</maintainer>
   <license>BSD-3-Clause</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
