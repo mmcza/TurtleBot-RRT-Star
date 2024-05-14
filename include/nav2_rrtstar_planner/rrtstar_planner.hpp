@@ -55,63 +55,47 @@
 #include "nav2_util/lifecycle_node.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
-namespace nav2_rrtstar_planner
-{
+namespace nav2_rrtstar_planner {
 
 struct Vertex {
-    double x, y, travel_cost;
+    double x, y, cost;
     Vertex* parent;
-    Vertex(double x_val, double y_val, Vertex* p = nullptr, double travel_distance = 0) : x(x_val), y(y_val), parent(p), travel_cost(travel_distance) {}
+    Vertex(double x_val, double y_val, Vertex* p = nullptr, double travel_distance = 0) :
+        x(x_val), y(y_val), parent(p), cost(travel_distance) {}
 };
 
-class RRTStar : public nav2_core::GlobalPlanner
-{
+class RRTStar : public nav2_core::GlobalPlanner {
 public:
-  RRTStar() = default;
-  ~RRTStar() = default;
+    RRTStar() = default;
+    ~RRTStar() override = default;
 
-  // plugin configure
-  void configure(
-    const rclcpp_lifecycle::LifecycleNode::WeakPtr & parent,
-    std::string name, std::shared_ptr<tf2_ros::Buffer> tf,
-    std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
+    void configure(const rclcpp_lifecycle::LifecycleNode::WeakPtr& parent,
+                   std::string name, std::shared_ptr<tf2_ros::Buffer> tf,
+                   std::shared_ptr<nav2_costmap_2d::Costmap2DROS> costmap_ros) override;
+    void cleanup() override;
+    void activate() override;
+    void deactivate() override;
 
-  // plugin cleanup
-  void cleanup() override;
+    nav_msgs::msg::Path createPlan(const geometry_msgs::msg::PoseStamped& start,
+                                   const geometry_msgs::msg::PoseStamped& goal) override;
 
-  // plugin activate
-  void activate() override;
+protected:
+    std::shared_ptr<tf2_ros::Buffer> tf_;
+    nav2_util::LifecycleNode::SharedPtr node_;
+    nav2_costmap_2d::Costmap2D* costmap_;
+    std::string global_frame_;
+    std::string name_;
+    int max_iterations_;
+    double interpolation_resolution_;
+    std::vector<Vertex> tree_;
+    double ball_radius_constant_;
 
-  // plugin deactivate
-  void deactivate() override;
-
-  // This method creates path for given start and goal pose.
-  nav_msgs::msg::Path createPlan(
-    const geometry_msgs::msg::PoseStamped & start,
-    const geometry_msgs::msg::PoseStamped & goal) override;
-
-private:
-  // TF buffer
-  std::shared_ptr<tf2_ros::Buffer> tf_;
-
-  // node ptr
-  nav2_util::LifecycleNode::SharedPtr node_;
-
-  // Global Costmap
-  nav2_costmap_2d::Costmap2D * costmap_;
-
-  // The global frame of the costmap
-  std::string global_frame_, name_;
-  int max_iterations_;
-
-  double interpolation_resolution_;
-  std::vector<Vertex> tree_;
-  Vertex* nearest_neighbor(double x, double y);
-  double calculate_distance(double x, double y, Vertex vertex);
-  bool connectible(Vertex start, Vertex end);
-
+    double calculate_distance(double x, double y, const Vertex& vertex);
+    Vertex* nearest_neighbor(double x, double y);
+    bool connectible(const Vertex& start, const Vertex& end);
+    void calculateBallRadiusConstant();
+    double calculateBallRadius(int tree_size, int dimensions, double max_connection_distance);
+    std::vector<Vertex*> findVerticesInsideCircle(double center_x, double center_y, double radius);
 };
-
-}  // namespace nav2_rrtstar_planner
 
 #endif  // NAV2_RRTSTAR_PLANNER__RRTSTAR_PLANNER_HPP_
