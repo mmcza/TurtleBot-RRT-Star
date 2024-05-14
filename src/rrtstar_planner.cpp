@@ -47,7 +47,6 @@
 #include <limits>
 
 #include "nav2_rrtstar_planner/rrtstar_planner.hpp"
-
 namespace nav2_rrtstar_planner
 {
 
@@ -65,8 +64,7 @@ void RRTStar::configure(
 
   // Parameter initialization
   nav2_util::declare_parameter_if_not_declared(
-    node_, name_ + ".interpolation_resolution", rclcpp::ParameterValue(
-      0.01));
+    node_, name_ + ".interpolation_resolution", rclcpp::ParameterValue(0.01));
   node_->get_parameter(name_ + ".interpolation_resolution", interpolation_resolution_);
 }
 
@@ -91,13 +89,52 @@ void RRTStar::deactivate()
     name_.c_str());
 }
 
-double RRTStar::calculate_distance(double x, double y, Vertex vertex)
-{
-  return sqrt(pow(vertex.x - x, 2) + pow(vertex.y - y, 2));
+void RRTStar::calculateBallRadiusConstant() {
+    double resolution = costmap_->getResolution();
+    double cellArea = resolution * resolution;
+    unsigned int numFreeCells = 0;
+
+    for (unsigned int x = 0; x < costmap_->getSizeInCellsX(); x++) {
+        for (unsigned int y = 0; y < costmap_->getSizeInCellsY(); y++) {
+            if (costmap_->getCost(x, y) == nav2_costmap_2d::FREE_SPACE) {
+                numFreeCells++;
+            }
+        }
+    }
+
+    double freeVolume = cellArea * numFreeCells; 
+    int dimensions = 2;  
+    double vUnitBall = M_PI;  
+    ball_radius_constant_ = 2.0 * (1 + 1.0 / dimensions) * std::pow((freeVolume / vUnitBall), (1.0 / dimensions));
+    RCLCPP_INFO(node_->get_logger(), "Ball Radius Constant: %f", ball_radius_constant_);
 }
 
-Vertex* RRTStar::nearest_neighbor(double x, double y)
-{
+double RRTStar::calculateBallRadius(int tree_size, int dimensions, double max_connection_distance) {
+    double term1 = (ball_radius_constant_ * std::log(tree_size)) / tree_size;
+    double term2 = std::pow(term1, 1.0 / dimensions);
+    return std::min(term2, max_connection_distance);
+}
+
+std::vector<Vertex*> RRTStar::findVerticesInsideCircle(double center_x, double center_y, double radius) {
+    std::vector<Vertex*> vertices_inside_circle;
+
+    for (auto& vertex : tree_) {
+        double distance_squared = std::pow(vertex.x - center_x, 2) + std::pow(vertex.y - center_y, 2);
+        if (distance_squared <= std::pow(radius, 2)) {
+            vertices_inside_circle.push_back(&vertex);
+        }
+    }
+
+    RCLCPP_INFO(node_->get_logger(), "Number of vertices found within the circle: %d", vertices_inside_circle.size());
+
+    return vertices_inside_circle;
+}
+
+double RRTStar::calculate_distance(double x, double y, const Vertex& vertex) {
+    return std::sqrt(std::pow(vertex.x - x, 2) + std::pow(vertex.y - y, 2));
+}
+
+Vertex* RRTStar::nearest_neighbor(double x, double y) {
     Vertex* nearest_vertex = nullptr;
     double min_distance = std::numeric_limits<double>::infinity();
 
@@ -111,20 +148,16 @@ Vertex* RRTStar::nearest_neighbor(double x, double y)
     return nearest_vertex;
 }
 
-
-bool RRTStar::connectible(Vertex start, Vertex end) {
+bool RRTStar::connectible(const Vertex& start, const Vertex& end) {
     double resolution = interpolation_resolution_;
-    double steps = ceil(std::hypot(end.x - start.x, end.y - start.y) / resolution);
+    double steps = std::ceil(std::hypot(end.x - start.x, end.y - start.y) / resolution);
     double x_increment = (end.x - start.x) / steps;
     double y_increment = (end.y - start.y) / steps;
 
     double x = start.x, y = start.y;
-    for (auto i = 0; i < steps; ++i) {
+    for (int i = 0; i < steps; ++i) {
         unsigned int mx, my;
         if (!costmap_->worldToMap(x, y, mx, my)) return false;
-        // RCLCPP_INFO(node_->get_logger(), "x %f", x);
-        // RCLCPP_INFO(node_->get_logger(), "mx %u", mx); 
-        // the line below need some changes because it's not checking properly
         if (costmap_->getCost(mx, my) != nav2_costmap_2d::FREE_SPACE) return false;
         x += x_increment;
         y += y_increment;
@@ -141,14 +174,14 @@ nav_msgs::msg::Path RRTStar::createPlan(
   // Checking if the goal and start state is in the global frame
   if (start.header.frame_id != global_frame_) {
     RCLCPP_ERROR(
-      node_->get_logger(), "Planner will only except start position from %s frame",
+      node_->get_logger(), "Planner will only accept start position from %s frame",
       global_frame_.c_str());
     return global_path;
   }
 
   if (goal.header.frame_id != global_frame_) {
     RCLCPP_INFO(
-      node_->get_logger(), "Planner will only except goal position from %s frame",
+      node_->get_logger(), "Planner will only accept goal position from %s frame",
       global_frame_.c_str());
     return global_path;
   }
@@ -156,25 +189,19 @@ nav_msgs::msg::Path RRTStar::createPlan(
   global_path.poses.clear();
   global_path.header.stamp = node_->now();
   global_path.header.frame_id = global_frame_;
-  //calculating the number of loops for current value of interpolation_resolution_
-  int total_number_of_loop = std::hypot(
-    goal.pose.position.x - start.pose.position.x,
-    goal.pose.position.y - start.pose.position.y) /
-    interpolation_resolution_;
-  double x_increment = (goal.pose.position.x - start.pose.position.x) / total_number_of_loop;
-  double y_increment = (goal.pose.position.y - start.pose.position.y) / total_number_of_loop;
 
   // setting up random position generator
+  calculateBallRadiusConstant();
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<>x_dis(-3.0, 3.0);
-  std::uniform_real_distribution<>y_dis(-3.0, 3.0);
+  std::uniform_real_distribution<> x_dis(costmap_->getOriginX(), costmap_->getOriginX() + costmap_->getSizeInCellsX() * costmap_->getResolution());
+  std::uniform_real_distribution<> y_dis(costmap_->getOriginY(), costmap_->getOriginY() + costmap_->getSizeInCellsY() * costmap_->getResolution());
 
   // adding start position to the tree
   tree_.clear();
-  tree_.shrink_to_fit();
   tree_.reserve(max_iterations_);
   Vertex start_vertex(start.pose.position.x, start.pose.position.y);
+  start_vertex.cost = 0;
   tree_.emplace_back(start_vertex);
   Vertex end_vertex(goal.pose.position.x, goal.pose.position.y);
 
@@ -184,54 +211,46 @@ nav_msgs::msg::Path RRTStar::createPlan(
       Vertex new_position(rand_x, rand_y);
 
       // Find nearest neighbor and assign its parent to new_position
-      Vertex* parent_of_new_position = nearest_neighbor(rand_x, rand_y);
+      Vertex* nearest = nearest_neighbor(rand_x, rand_y);
+      new_position.parent = nearest;
+      new_position.cost = nearest->cost + calculate_distance(nearest->x, nearest->y, new_position);
 
-      new_position.parent = parent_of_new_position;
-
-      if (connectible(*(parent_of_new_position), new_position)) {
+      if (connectible(*nearest, new_position)) {
           tree_.emplace_back(new_position);
-      }
 
-      if (connectible(new_position, end_vertex)) {
-          end_vertex.parent = &new_position;
-          tree_.emplace_back(end_vertex);
-
-          Vertex cur_ver = end_vertex;
-          while (true) {
-              geometry_msgs::msg::PoseStamped pose;
-              pose.pose.position.x = cur_ver.x;
-              pose.pose.position.y = cur_ver.y;
-              pose.pose.position.z = 0.0;
-
-              global_path.poses.insert(global_path.poses.begin(), pose);
-
-              // Break if there is no parent or if the parent is already visited
-              if (cur_ver.parent == nullptr) {
-                  break;
+          // Perform rewire operation
+          double ball_radius = calculateBallRadius(tree_.size(), 2, interpolation_resolution_);
+          std::vector<Vertex*> vertices_inside_circle = findVerticesInsideCircle(new_position.x, new_position.y, ball_radius);
+          for (auto vertex_ptr : vertices_inside_circle) {
+              Vertex& vertex = *vertex_ptr;
+              double potential_cost = new_position.cost + calculate_distance(new_position.x, new_position.y, vertex);
+              if (potential_cost < vertex.cost && connectible(new_position, vertex)) {
+                  vertex.parent = &new_position;
+                  vertex.cost = potential_cost;
               }
-              cur_ver = *(cur_ver.parent);
           }
-          break;
-      }
-      
-      // geometry_msgs::msg::PoseStamped pose;
-      // pose.pose.position.x = start.pose.position.x + x_increment * i;
-      // pose.pose.position.y = start.pose.position.y + y_increment * i;
-      // pose.pose.position.z = 0.0;
-      // pose.pose.orientation.x = 0.0;
-      // pose.pose.orientation.y = 0.0;
-      // pose.pose.orientation.z = 0.0;
-      // pose.pose.orientation.w = 1.0;
-      // //pose.header.stamp = node_->now();
-      // //pose.header.frame_id = global_frame_; 
-      // global_path.poses.push_back(pose);
-    }
 
-  // geometry_msgs::msg::PoseStamped goal_pose = goal;
-  // goal_pose.header.stamp = node_->now();
-  // goal_pose.header.frame_id = global_frame_;
-  // global_path.poses.push_back(goal_pose);
-	
+          if (connectible(new_position, end_vertex)) {
+              end_vertex.parent = &new_position;
+              end_vertex.cost = new_position.cost + calculate_distance(new_position.x, new_position.y, end_vertex);
+              tree_.emplace_back(end_vertex);
+
+              Vertex* cur_ver = &end_vertex;
+              while (cur_ver) {
+                  geometry_msgs::msg::PoseStamped pose;
+                  pose.pose.position.x = cur_ver->x;
+                  pose.pose.position.y = cur_ver->y;
+                  pose.pose.position.z = 0.0;
+
+                  global_path.poses.insert(global_path.poses.begin(), pose);
+                  cur_ver = cur_ver->parent;
+              }
+
+              break;
+          }
+      }
+  }
+
   return global_path;
 }
 
