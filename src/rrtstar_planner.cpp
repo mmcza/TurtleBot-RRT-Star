@@ -1,43 +1,3 @@
-/*********************************************************************
- *
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2020 Shivang Patel
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of Willow Garage, Inc. nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- * Author: Shivang Patel
- *
- * Reference tutorial:
- * https://navigation.ros.org/tutorials/docs/writing_new_nav2planner_plugin.html
- *********************************************************************/
-
 #include <cmath>
 #include <string>
 #include <memory>
@@ -47,6 +7,7 @@
 #include <limits>
 
 #include "nav2_rrtstar_planner/rrtstar_planner.hpp"
+
 namespace nav2_rrtstar_planner
 {
 
@@ -125,7 +86,7 @@ std::vector<Vertex*> RRTStar::findVerticesInsideCircle(double center_x, double c
         }
     }
 
-    RCLCPP_INFO(node_->get_logger(), "Number of vertices found within the circle: %d", vertices_inside_circle.size());
+    RCLCPP_INFO(node_->get_logger(), "Number of vertices found within the circle: %lu", vertices_inside_circle.size());
 
     return vertices_inside_circle;
 }
@@ -230,26 +191,44 @@ nav_msgs::msg::Path RRTStar::createPlan(
               }
           }
 
-          if (connectible(new_position, end_vertex)) {
-              end_vertex.parent = &new_position;
-              end_vertex.cost = new_position.cost + calculate_distance(new_position.x, new_position.y, end_vertex);
-              tree_.emplace_back(end_vertex);
+          // if (connectible(new_position, end_vertex)) {
+          //     end_vertex.parent = &new_position;
+          //     end_vertex.cost = new_position.cost + calculate_distance(new_position.x, new_position.y, end_vertex);
+          //     tree_.emplace_back(end_vertex);
 
-              Vertex* cur_ver = &end_vertex;
-              while (cur_ver) {
-                  geometry_msgs::msg::PoseStamped pose;
-                  pose.pose.position.x = cur_ver->x;
-                  pose.pose.position.y = cur_ver->y;
-                  pose.pose.position.z = 0.0;
+          //     Vertex* cur_ver = &end_vertex;
+          //     while (cur_ver) {
+          //         geometry_msgs::msg::PoseStamped pose;
+          //         pose.pose.position.x = cur_ver->x;
+          //         pose.pose.position.y = cur_ver->y;
+          //         pose.pose.position.z = 0.0;
 
-                  global_path.poses.insert(global_path.poses.begin(), pose);
-                  cur_ver = cur_ver->parent;
-              }
+          //         global_path.poses.insert(global_path.poses.begin(), pose);
+          //         cur_ver = cur_ver->parent;
+          //     }
 
-              break;
-          }
+          //     break;
+          // }
       }
   }
+
+  Vertex* nearest_to_goal = nearest_neighbor(goal.pose.position.x, goal.pose.position.y);
+  if (connectible(*nearest_to_goal, end_vertex)) {
+        // end_vertex.parent = &new_position;
+        // end_vertex.cost = new_position.cost + calculate_distance(new_position.x, new_position.y, end_vertex);
+        tree_.emplace_back(end_vertex);
+
+        Vertex* cur_ver = nearest_to_goal;
+        while (cur_ver) {
+            geometry_msgs::msg::PoseStamped pose;
+            pose.pose.position.x = cur_ver->x;
+            pose.pose.position.y = cur_ver->y;
+            pose.pose.position.z = 0.0;
+
+            global_path.poses.insert(global_path.poses.begin(), pose);
+            cur_ver = cur_ver->parent;
+        }
+    }
 
   return global_path;
 }
