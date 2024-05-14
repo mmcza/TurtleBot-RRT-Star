@@ -21,7 +21,7 @@ void RRTStar::configure(
   tf_ = tf;
   costmap_ = costmap_ros->getCostmap();
   global_frame_ = costmap_ros->getGlobalFrameID();
-  max_iterations_ = 2000;
+  max_iterations_ = 4000;
 
   // Parameter initialization
   nav2_util::declare_parameter_if_not_declared(
@@ -79,9 +79,11 @@ double RRTStar::calculateBallRadius(int tree_size, int dimensions, double max_co
 std::vector<Vertex*> RRTStar::findVerticesInsideCircle(double center_x, double center_y, double radius) {
     std::vector<Vertex*> vertices_inside_circle;
 
+    RCLCPP_INFO(node_->get_logger(), "Radius of the circle: %.2f", radius);    
+
     for (auto& vertex : tree_) {
         double distance_squared = std::pow(vertex.x - center_x, 2) + std::pow(vertex.y - center_y, 2);
-        if (distance_squared <= std::pow(radius, 2)) {
+        if (distance_squared <= std::pow(radius, 1)) {
             vertices_inside_circle.push_back(&vertex);
         }
     }
@@ -124,6 +126,19 @@ bool RRTStar::connectible(const Vertex& start, const Vertex& end) {
         y += y_increment;
     }
     return true;
+}
+
+double RRTStar::calculate_cost_from_start(const Vertex& vertex) {
+    double total_cost = 0.0;
+
+    const Vertex* cur_ver = &vertex;
+
+    while (cur_ver != nullptr) {
+        total_cost += cur_ver->cost;
+        cur_ver = cur_ver->parent;
+    }
+
+    return total_cost;
 }
 
 nav_msgs::msg::Path RRTStar::createPlan(
@@ -174,62 +189,86 @@ nav_msgs::msg::Path RRTStar::createPlan(
       // Find nearest neighbor and assign its parent to new_position
       Vertex* nearest = nearest_neighbor(rand_x, rand_y);
       new_position.parent = nearest;
-      new_position.cost = nearest->cost + calculate_distance(nearest->x, nearest->y, new_position);
+      new_position.cost = calculate_distance(nearest->x, nearest->y, new_position);
 
       if (connectible(*nearest, new_position)) {
           tree_.emplace_back(new_position);
 
           // Perform rewire operation
-          double ball_radius = calculateBallRadius(tree_.size(), 2, interpolation_resolution_);
+          double ball_radius = calculateBallRadius(tree_.size(), 2, 2.0);
           std::vector<Vertex*> vertices_inside_circle = findVerticesInsideCircle(new_position.x, new_position.y, ball_radius);
+          double total_cost_for_new_position = calculate_cost_from_start(new_position);
+
+          int num_of_rewiring = 0;
+
+          // Check if there is a better route from start towards the new position
           for (auto vertex_ptr : vertices_inside_circle) {
               Vertex& vertex = *vertex_ptr;
-              double potential_cost = new_position.cost + calculate_distance(new_position.x, new_position.y, vertex);
-              if (potential_cost < vertex.cost && connectible(new_position, vertex)) {
-                  vertex.parent = &new_position;
-                  vertex.cost = potential_cost;
+              double potential_cost = calculate_cost_from_start(vertex) + calculate_distance(new_position.x, new_position.y, vertex);
+              if (potential_cost < total_cost_for_new_position && connectible(new_position, vertex)){
+                new_position.parent = &vertex;
+                new_position.cost = calculate_distance(new_position.x, new_position.y, vertex);
+                total_cost_for_new_position = potential_cost;
+                num_of_rewiring+=1;
               }
           }
 
-          // if (connectible(new_position, end_vertex)) {
-          //     end_vertex.parent = &new_position;
-          //     end_vertex.cost = new_position.cost + calculate_distance(new_position.x, new_position.y, end_vertex);
-          //     tree_.emplace_back(end_vertex);
+          // Check if any existing vertex may benefit from being connected by the new position
+          for (auto vertex_ptr : vertices_inside_circle) {
+              Vertex& vertex = *vertex_ptr;
+              double current_cost = calculate_cost_from_start(vertex);
+              double potential_cost = calculate_cost_from_start(new_position) + calculate_distance(new_position.x, new_position.y, vertex);
+              if (potential_cost < vertex.cost && connectible(new_position, vertex)) {
+                  vertex.parent = &new_position;
+                  vertex.cost = calculate_distance(new_position.x, new_position.y, vertex);
+                  num_of_rewiring+=1;
+              }
+          }
 
-          //     Vertex* cur_ver = &end_vertex;
-          //     while (cur_ver) {
-          //         geometry_msgs::msg::PoseStamped pose;
-          //         pose.pose.position.x = cur_ver->x;
-          //         pose.pose.position.y = cur_ver->y;
-          //         pose.pose.position.z = 0.0;
-
-          //         global_path.poses.insert(global_path.poses.begin(), pose);
-          //         cur_ver = cur_ver->parent;
-          //     }
-
-          //     break;
-          // }
+        RCLCPP_INFO( node_->get_logger(), "Rewired a total of %d vertexes", num_of_rewiring);
+          
       }
   }
 
-  Vertex* nearest_to_goal = nearest_neighbor(goal.pose.position.x, goal.pose.position.y);
-  if (connectible(*nearest_to_goal, end_vertex)) {
-        // end_vertex.parent = &new_position;
-        // end_vertex.cost = new_position.cost + calculate_distance(new_position.x, new_position.y, end_vertex);
-        tree_.emplace_back(end_vertex);
+  // Find optimal way to the goal
 
-        Vertex* cur_ver = nearest_to_goal;
-        while (cur_ver) {
-            geometry_msgs::msg::PoseStamped pose;
-            pose.pose.position.x = cur_ver->x;
-            pose.pose.position.y = cur_ver->y;
-            pose.pose.position.z = 0.0;
+  double ball_radius = calculateBallRadius(tree_.size(), 2, 2.0);
+  std::vector<Vertex*> vertices_inside_circle = findVerticesInsideCircle(goal.pose.position.x, goal.pose.position.y, ball_radius);
+  while (true){
 
-            global_path.poses.insert(global_path.poses.begin(), pose);
-            cur_ver = cur_ver->parent;
-        }
-    }
+    double min_cost = std::numeric_limits<double>::infinity();
 
+      for (auto vertex_ptr : vertices_inside_circle) {
+          Vertex& vertex = *vertex_ptr;
+          double potential_cost = calculate_cost_from_start(vertex) + calculate_distance(goal.pose.position.x, goal.pose.position.y, vertex);
+          if (potential_cost < min_cost && connectible(end_vertex, vertex)){
+              end_vertex.parent = &vertex;
+              end_vertex.cost = calculate_distance(goal.pose.position.x, goal.pose.position.y, vertex);
+              min_cost = potential_cost;
+          }
+      }
+
+      if (min_cost < 10000){
+      tree_.emplace_back(end_vertex);
+
+      Vertex* cur_ver = &end_vertex;
+      while (cur_ver) {
+          geometry_msgs::msg::PoseStamped pose;
+          pose.pose.position.x = cur_ver->x;
+          pose.pose.position.y = cur_ver->y;
+          pose.pose.position.z = 0.0;
+
+          global_path.poses.insert(global_path.poses.begin(), pose);
+          cur_ver = cur_ver->parent;
+      }
+      break;
+      }
+      if (ball_radius >100){
+        break;
+      }
+    ball_radius += 0.5;
+    vertices_inside_circle = findVerticesInsideCircle(goal.pose.position.x, goal.pose.position.y, ball_radius);
+  }
   return global_path;
 }
 
