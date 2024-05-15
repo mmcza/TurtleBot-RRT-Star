@@ -21,7 +21,7 @@ void RRTStar::configure(
   tf_ = tf;
   costmap_ = costmap_ros->getCostmap();
   global_frame_ = costmap_ros->getGlobalFrameID();
-  max_iterations_ = 4000;
+  max_iterations_ = 10000;
 
   // Parameter initialization
   nav2_util::declare_parameter_if_not_declared(
@@ -166,22 +166,36 @@ nav_msgs::msg::Path RRTStar::createPlan(
   global_path.header.stamp = node_->now();
   global_path.header.frame_id = global_frame_;
 
-  // setting up random position generator
+  // Set up a random position generator
   calculateBallRadiusConstant();
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<> x_dis(costmap_->getOriginX(), costmap_->getOriginX() + costmap_->getSizeInCellsX() * costmap_->getResolution());
   std::uniform_real_distribution<> y_dis(costmap_->getOriginY(), costmap_->getOriginY() + costmap_->getSizeInCellsY() * costmap_->getResolution());
 
-  // adding start position to the tree
+  // Add start position to the tree
   tree_.clear();
   tree_.reserve(max_iterations_);
   Vertex start_vertex(start.pose.position.x, start.pose.position.y);
   start_vertex.cost = 0;
   tree_.emplace_back(start_vertex);
+  
+  // Create vertex for the end point
   Vertex end_vertex(goal.pose.position.x, goal.pose.position.y);
+  geometry_msgs::msg::PoseStamped pose;
+  pose.pose.position.x = goal.pose.position.x;
+  pose.pose.position.y = goal.pose.position.y;
+  pose.pose.position.z = 0.0;
+  pose.pose.orientation.x = goal.pose.orientation.x;
+  pose.pose.orientation.y = goal.pose.orientation.y;
+  pose.pose.orientation.z = goal.pose.orientation.z;
+  pose.pose.orientation.w = 1.0;
+  global_path.poses.insert(global_path.poses.begin(), pose);
+
+
 
   for (int i = 0; i < max_iterations_; ++i) {
+      // Generate a random point
       double rand_x = x_dis(gen);
       double rand_y = y_dis(gen);
       Vertex new_position(rand_x, rand_y);
@@ -225,7 +239,7 @@ nav_msgs::msg::Path RRTStar::createPlan(
               }
           }
 
-        RCLCPP_INFO( node_->get_logger(), "Rewired a total of %d vertexes", num_of_rewiring);
+        //RCLCPP_INFO( node_->get_logger(), "Rewired a total of %d vertices", num_of_rewiring);
           
       }
   }
@@ -259,6 +273,28 @@ nav_msgs::msg::Path RRTStar::createPlan(
           pose.pose.position.z = 0.0;
 
           global_path.poses.insert(global_path.poses.begin(), pose);
+
+          //Add waypoints between the random points
+          if (cur_ver->parent != nullptr){
+              double steps = std::ceil(std::hypot(cur_ver->x - cur_ver->parent->x, cur_ver->y - cur_ver->parent->y) * 10);
+              double x_increment = (cur_ver->parent->x - cur_ver->x) / steps;
+              double y_increment = (cur_ver->parent->y - cur_ver->y) / steps;
+
+              double x = cur_ver->x;
+              double y = cur_ver->y;
+
+              for (int i = 0; i < steps-1; ++i) {
+                x += x_increment;
+                y += y_increment;
+                geometry_msgs::msg::PoseStamped pose;
+                pose.pose.position.x = x;
+                pose.pose.position.y = y;
+                pose.pose.position.z = 0.0;
+
+              global_path.poses.insert(global_path.poses.begin(), pose);
+          }
+
+          }          
           cur_ver = cur_ver->parent;
       }
       break;
