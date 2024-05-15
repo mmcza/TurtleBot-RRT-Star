@@ -1,5 +1,7 @@
 # TurtleBot with RRT* path planning algorithm
 
+![RRT_Star.gif](/Pictures/RRT_Star.gif)
+
 ## Table of Contents
 
 - [TurtleBot with RRT\* path planning algorithm](#turtlebot-with-rrt-path-planning-algorithm)
@@ -15,6 +17,7 @@
   - [2. Running the simulation](#2-running-the-simulation)
     - [Override the params file](#override-the-params-file)
     - [Workspace preparation](#workspace-preparation)
+    - [Changing frequency of path planning (optional)](#changing-frequency-of-path-planning-optional)
     - [Building the package](#building-the-package)
     - [Launching the simulation](#launching-the-simulation)
   - [3. About the RRT\* Algorithm](#3-about-the-rrt-algorithm)
@@ -23,6 +26,7 @@
     - [Gazebo not starting](#gazebo-not-starting)
     - [Unable to use custom plugin for Nav2 path planning](#unable-to-use-custom-plugin-for-nav2-path-planning)
     - [Memory errors](#memory-errors)
+    - [Robot stopping even the path was planned](#robot-stopping-even-the-path-was-planned)
   - [6. Reference](#6-reference)
 
 
@@ -115,6 +119,14 @@ export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gaz
 source /usr/share/gazebo/setup.bash
 ```
 
+### Changing frequency of path planning (optional)
+
+By default the path planner runs once every second and because RRT* is based on random points the path may differ (with number of points equal $\infty$ the path would be the same as it would be optimal) and it may cause the robot to go in completely different way. The solution can be to change the frequency inside `navigate_to_pose_w_replanning_and_recovery.xml`. Below is an example that disable (by setting rate = 0.0) the periodic replanner but the path may be replanned if robot get stuck.
+
+```
+sed -i '11s|.*|        <RateController hz="0.0">|' /opt/ros/humble/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml
+```
+
 ### Building the package
 When inside the workspace:
 ```
@@ -138,7 +150,7 @@ It may take some time to start the Gazebo (if it's first time running than even 
 
 ## 3. About the RRT* Algorithm
 
-The difference between RRT* and default RRT Algorithm is the fact that RRT* can rewire the nodes when new one appears and cost of going through it is lower than through an existing one. 
+The difference between RRT* and default RRT Algorithm is the fact that RRT* takes cost of the robot moving from one node to another and that it can rewire the nodes when new one appears and cost of going through it is lower than through an existing one. Also basic RRT algorithm stops when there is a path between a node and the end point while RRT* continue for certain number of iterations. As a result RRT* algorithm is asymptotically optimal (with number of nodes going towards $\infty$ it will find the optimal path).
 
 Pseudocode for RRT* is shown below [[1]](#1).
 
@@ -174,6 +186,12 @@ Solution was (as mentioned in [this comment](https://github.com/open-navigation/
 The issue was that pointers were pointing address in a vector that could be relocated.
 
 The solution was to reserve the memory.
+
+### Robot stopping even the path was planned
+
+The problem was caused by the fact that next pose in the path had to be in certain radius of the robot so it can go towards it.
+
+The solution was to add more waypoints between each two poses.
 
 ## 6. Reference
 
