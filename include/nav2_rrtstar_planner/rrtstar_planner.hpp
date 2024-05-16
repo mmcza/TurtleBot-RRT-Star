@@ -51,7 +51,7 @@ protected:
     bool connectible(const Vertex& start, const Vertex& end);
     void calculateBallRadiusConstant();
     double calculateBallRadius(int tree_size, int dimensions, double max_connection_distance);
-    std::vector<Vertex*> findVerticesInsideCircle(double center_x, double center_y, double radius);
+    std::vector<int> findVerticesInsideCircle(double center_x, double center_y, double radius);
     double calculate_cost_from_start(const Vertex& vertex);
 };
 
