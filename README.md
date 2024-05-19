@@ -92,9 +92,6 @@ bash start_container.sh
 
 ## 2. Running the simulation
 
-> [!NOTE]
-> Currently in this repositorium there is implemented the RRT Algorithm.
-
 ### Override the params file
 ```
 cp /path/to/the/repository/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml
