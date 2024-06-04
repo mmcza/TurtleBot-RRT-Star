@@ -162,11 +162,10 @@ Pseudocode for RRT* is shown below [[1]](#1).
 
 - calculateBallEadiusConstant computes a constant used for determining the ball radius during the rewire step, based on the free space in the costmap.
 - calculateBallRadius calculates the actual ball radius used to find nearby vertices during the rewire step. The radius is determined based on the size of the tree and ensures that it does not exceed a specified maximum connection distance.
+
+ ### [vertices inside circle](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L79-L95)
   
-  ### [vertices inside circle](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L79-L95)
-  
-  - vertices_inside_circle the function returns a vector of indices representing the vertices that lie within the specified radius from the center point.
-  
+  - vertices_inside_circle the function returns a vector of indices representing the vertices that lie within the specified radius from the center point. This is done by iteratively following the parent pointers from the given vertex back to the start vertex.
   
 ### [nearest neighbor and connectivity check](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L96-L131)
 
@@ -174,9 +173,14 @@ Pseudocode for RRT* is shown below [[1]](#1).
 - nearest_neighbor this function finds the nearest vertex in the tree to a given point.
 - connectible checks whether a straight-line path between two vertices is free of obstacles. It determines the number of interpolation steps based on the distance and resolution, and then incrementally checks each point for obstacles in the costmap.
 
-  ### [calculate cost](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L133-L144)
-  - calculate_cost_from_start computes the total cost from the start vertex to a given vertex by summing the costs along the path.
-   
+### [calculate cost](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L133-L144)
+- calculate_cost_from_start computes the total cost from the start vertex to a given vertex by summing the costs along the path.
+
+### [create plan](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L146-L195)
+- createPlan function generates a path from the start pose to the goal pose using the RRT* algorithm.
+
+### [main loop](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L199-L254)
+- in the main loop of createPlan function, the algorithm generates a random point within the costmap and creates a new vertex. It finds the nearest existing vertex in the tree and assigns it as the parent of the new vertex, calculating the cost to reach it. The algorithm then checks if the path to the new vertex is obstacle-free using the connectible function. If clear, it calculates a ball radius to find nearby vertices, adds the new vertex to the tree, and calculates its cost from the start. The algorithm then attempts to rewire the tree by finding more efficient paths through the new vertex and updating parent pointers and costs accordingly. If the path is obstructed, the new vertexis discarded, and the iterations is retired.
 
 ## 5. Encountered issues and solutions
 
