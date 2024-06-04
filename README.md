@@ -154,6 +154,29 @@ Pseudocode for RRT* is shown below [[1]](#1).
 ![RRT_Star_Algorithm](/Pictures/RRT_Star_pseudocode.png)
 
 ## 4. RRT* Algorithm Implementation
+### [configuration and lifecycle management](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L14-L51)
+
+- initalizes the RRTStar planner by setting up necessary parameters, such as the interpolation resolution and costmap.
+
+### [calculate radius](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L53-L77)
+
+- calculateBallEadiusConstant computes a constant used for determining the ball radius during the rewire step, based on the free space in the costmap.
+- calculateBallRadius calculates the actual ball radius used to find nearby vertices during the rewire step. The radius is determined based on the size of the tree and ensures that it does not exceed a specified maximum connection distance.
+  
+  ### [vertices inside circle](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L79-L95)
+  
+  - vertices_inside_circle the function returns a vector of indices representing the vertices that lie within the specified radius from the center point.
+  
+  
+### [nearest neighbor and connectivity check](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L96-L131)
+
+- calculate_distance this function calculates the Euclidean distance between a given point and a vertex in the tree.
+- nearest_neighbor this function finds the nearest vertex in the tree to a given point.
+- connectible checks whether a straight-line path between two vertices is free of obstacles. It determines the number of interpolation steps based on the distance and resolution, and then incrementally checks each point for obstacles in the costmap.
+
+  ### [calculate cost](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L133-L144)
+  - calculate_cost_from_start computes the total cost from the start vertex to a given vertex by summing the costs along the path.
+   
 
 ## 5. Encountered issues and solutions
 
