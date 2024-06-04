@@ -182,6 +182,8 @@ Pseudocode for RRT* is shown below [[1]](#1).
 ### [main loop](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L199-L254)
 - in the main loop of createPlan function, the algorithm generates a random point within the costmap and creates a new vertex. It finds the nearest existing vertex in the tree and assigns it as the parent of the new vertex, calculating the cost to reach it. The algorithm then checks if the path to the new vertex is obstacle-free using the connectible function. If clear, it calculates a ball radius to find nearby vertices, adds the new vertex to the tree, and calculates its cost from the start. The algorithm then attempts to rewire the tree by finding more efficient paths through the new vertex and updating parent pointers and costs accordingly. If the path is obstructed, the new vertexis discarded, and the iterations is retired.
 
+If the number of iterations exceeds the 1000 iterations, the algorithm terminates the loop and proceeds to find the optimal path to the goal using the vertices already in the tree. This ensures that the algorithm does not run indefinitely and provides a solution within a reasonable amount of time.
+
 ## 5. Encountered issues and solutions
 
 ### Gazebo not starting
