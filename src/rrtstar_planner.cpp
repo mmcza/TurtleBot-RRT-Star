@@ -255,7 +255,7 @@ nav_msgs::msg::Path RRTStar::createPlan(
 
   // Find optimal way to the goal
 
-  double ball_radius = calculateBallRadius(tree_.size(), 2, 2.0);
+  double ball_radius = 2*calculateBallRadius(tree_.size(), 2, 2.0);
   std::vector<int> vertices_inside_circle = findVerticesInsideCircle(goal.pose.position.x, goal.pose.position.y, ball_radius);
   while (true){
 
