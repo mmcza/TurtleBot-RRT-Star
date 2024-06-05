@@ -22,12 +22,21 @@
     - [Launching the simulation](#launching-the-simulation)
   - [3. About the RRT\* Algorithm](#3-about-the-rrt-algorithm)
   - [4. RRT\* Algorithm Implementation](#4-rrt-algorithm-implementation)
+    - [configuration and lifecycle management](#configuration-and-lifecycle-management)
+    - [calculate radius](#calculate-radius)
+    - [vertices inside circle](#vertices-inside-circle)
+    - [nearest neighbor and connectivity check](#nearest-neighbor-and-connectivity-check)
+    - [calculate cost](#calculate-cost)
+    - [create plan](#create-plan)
+    - [main loop](#main-loop)
+    - [returning the optimal path](#returning-the-optimal-path)
   - [5. Encountered issues and solutions](#5-encountered-issues-and-solutions)
     - [Gazebo not starting](#gazebo-not-starting)
     - [Unable to use custom plugin for Nav2 path planning](#unable-to-use-custom-plugin-for-nav2-path-planning)
     - [Memory errors](#memory-errors)
     - [Robot stopping even the path was planned](#robot-stopping-even-the-path-was-planned)
-  - [6. Reference](#6-reference)
+  - [6. Possible development directions](#6-possible-development-directions)
+  - [Reference](#reference)
 
 
 
@@ -153,6 +162,9 @@ Pseudocode for RRT* is shown below [[1]](#1).
 
 ![RRT_Star_Algorithm](/Pictures/RRT_Star_pseudocode.png)
 
+Example of RRT Star in action can be seen below (code available [here](https://github.com/mmcza/Motion-Planning-Methods-and-Algorithms_laboratory/tree/main/rrt_star)) - however the change of radius wasn't implemented and there was added a constant step distance between newly added vertex.
+![RRT_Star_example](/Pictures/rrt_star_example.gif)
+
 ## 4. RRT* Algorithm Implementation
 ### [configuration and lifecycle management](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L14-L51)
 
@@ -180,9 +192,11 @@ Pseudocode for RRT* is shown below [[1]](#1).
 - createPlan function generates a path from the start pose to the goal pose using the RRT* algorithm.
 
 ### [main loop](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L199-L254)
-- in the main loop of createPlan function, the algorithm generates a random point within the costmap and creates a new vertex. It finds the nearest existing vertex in the tree and assigns it as the parent of the new vertex, calculating the cost to reach it. The algorithm then checks if the path to the new vertex is obstacle-free using the connectible function. If clear, it calculates a ball radius to find nearby vertices, adds the new vertex to the tree, and calculates its cost from the start. The algorithm then attempts to rewire the tree by finding more efficient paths through the new vertex and updating parent pointers and costs accordingly. If the path is obstructed, the new vertexis discarded, and the iterations is retired.
+- in the main loop of createPlan function, the algorithm generates a random point within the costmap and creates a new vertex. It finds the nearest existing vertex in the tree, check if it's possible to connect them with a straight line and assigns it as the parent of the new vertex and calculates the cost to reach it. If the connection is possible, it calculates a ball radius to find nearby vertices, adds the new vertex to the tree, and calculates its total cost from the start. The algorithm then attempts to rewire the tree by finding more efficient paths through the new vertex to existing vertices or through existing vertices to the vertex. If the tree is rewired it's updating parent pointers and costs accordingly. If the path is obstructed, the new vertex is discarded, and the iterations is retired.
 
-If the number of iterations exceeds the 1000 iterations, the algorithm terminates the loop and proceeds to find the optimal path to the goal using the vertices already in the tree. This ensures that the algorithm does not run indefinitely and provides a solution within a reasonable amount of time.
+### [returning the optimal path](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L258-L329)
+
+If there is a total of 1000 vertices in the tree, the algorithm terminates the loop and proceeds to find the optimal path to the goal using the vertices that are in the tree by recursively going through parents of the vertices all the way to the start point. This ensures that the algorithm does not run indefinitely and provides a solution within a reasonable amount of time.
 
 ## 5. Encountered issues and solutions
 
@@ -219,7 +233,15 @@ The problem was caused by the fact that next pose in the path had to be in certa
 
 The solution was to add more waypoints between each two poses.
 
-## 6. Reference
+## 6. Possible development directions
+
+One of the possibilities is to experiment with the radius of the circle, because when the value is too low and there are many obstacles than the algorithm may return a non optimal path.
+
+Other potential upgrade would be to use RRT* Informed algorithm and limit the space where new vertices are being added after the initial path is found.
+
+The structure of the tree could also be improved to make searching for vertices inside the circle faster. A good example would be to use a k-d tree.
+
+## Reference
 
 <a id="1">[1]</a>
 Karaman, Sertac and Frazzoli, Emilio. Sampling-based Algorithms for Optimal Motion Planning. 2011, [https://doi.org/10.48550/arXiv.1105.1186](https://doi.org/10.48550/arXiv.1105.1186)
