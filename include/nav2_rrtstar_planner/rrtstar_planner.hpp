@@ -43,7 +43,7 @@ protected:
     std::string name_;
     int max_iterations_;
     double interpolation_resolution_;
-    std::vector<Vertex> tree_;
+    std::vector<std::unique_ptr<Vertex>> tree_;
     double ball_radius_constant_;
 
     double calculate_distance(double x, double y, const Vertex& vertex);
