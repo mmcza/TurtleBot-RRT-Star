@@ -16,7 +16,6 @@
       - [3. Start the container](#3-start-the-container)
   - [2. Running the simulation](#2-running-the-simulation)
     - [Override the params file](#override-the-params-file)
-    - [Workspace preparation](#workspace-preparation)
     - [Changing frequency of path planning (optional)](#changing-frequency-of-path-planning-optional)
     - [Building the package](#building-the-package)
     - [Launching the simulation](#launching-the-simulation)
@@ -108,21 +107,6 @@ cp /path/to/the/repository/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/s
 Example: in Docker it is:
 ```
 cp ~/Shared/src/TurtleBot-RRT-Star/nav2_params.yaml /opt/ros/humble/share/nav2_bringup/params/nav2_params.yaml
-```
-
-### Workspace preparation
-
-```
-source /opt/ros/humble/setup.bash
-```
-```
-export TURTLEBOT3_MODEL=waffle
-```
-```
-export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models
-```
-```
-source /usr/share/gazebo/setup.bash
 ```
 
 ### Changing frequency of path planning (optional)
