@@ -51,6 +51,10 @@ RUN echo 'if [ -f /etc/bash_completion ] && ! shopt -oq posix; then \n\
 fi \n\
 \n\
 export USER=root \n\
-source /opt/ros/$ROS_DISTRO/setup.bash' >> /root/.bashrc
+source /opt/ros/humble/setup.bash \n\
+export TURTLEBOT3_MODEL=waffle \n\
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models \n\
+source /usr/share/gazebo/setup.bash \n\
+source /usr/share/gazebo-11/setup.bash' >> /root/.bashrc
 
 RUN touch /root/.Xauthority
