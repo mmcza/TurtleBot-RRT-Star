@@ -142,43 +142,76 @@ It may take some time to start the Gazebo (if it's first time running than even 
 
 The difference between RRT* and default RRT Algorithm is the fact that RRT* takes cost of the robot moving from one node to another and that it can rewire the nodes when new one appears and cost of going through it is lower than through an existing one. Also basic RRT algorithm stops when there is a path between a node and the end point while RRT* continue for certain number of iterations. As a result RRT* algorithm is asymptotically optimal (with number of nodes going towards $\infty$ it will find the optimal path).
 
-Pseudocode for RRT* is shown below [[1]](#1).
+Pseudocode for RRT* (based on the algorithm described in [[1]](#1)) is shown below.
 
-![RRT_Star_Algorithm](/Pictures/RRT_Star_pseudocode.png)
+```
+RRT*(x_start, x_goal, N):
+    tree <- { x_start }                       # x_start.parent = none, cost(x_start) = 0
+
+    repeat N times:
+        x_rand    <- random point from the free space
+        x_nearest <- vertex in tree closest to x_rand
+        x_new     <- steer from x_nearest towards x_rand
+        if segment(x_nearest, x_new) is not collision-free:
+            continue
+
+        r      <- min( gamma * (log(n) / n)^(1/d), max_distance )   # n = |tree|, d = 2
+        X_near <- all vertices in tree within distance r of x_new
+
+        # choose the parent that gives x_new the lowest cost
+        best_parent <- x_nearest
+        best_cost   <- cost(x_nearest) + dist(x_nearest, x_new)
+        for each x in X_near:
+            c <- cost(x) + dist(x, x_new)
+            if c < best_cost and segment(x, x_new) is collision-free:
+                best_parent, best_cost <- x, c
+        x_new.parent <- best_parent
+        cost(x_new)  <- best_cost
+        add x_new to tree
+
+        # rewire: route neighbours through x_new if that makes them cheaper
+        for each x in X_near:
+            c <- cost(x_new) + dist(x_new, x)
+            if c < cost(x) and segment(x_new, x) is collision-free:
+                x.parent <- x_new
+                cost(x)  <- c
+
+    return path obtained by following parents from the vertex closest to x_goal back to x_start
+```
 
 Example of RRT Star in action can be seen below (code available [here](https://github.com/mmcza/Motion-Planning-Methods-and-Algorithms_laboratory/tree/main/rrt_star)) - however the change of radius wasn't implemented and there was added a constant step distance between newly added vertex.
 ![RRT_Star_example](/Pictures/rrt_star_example.gif)
 
 ## 4. RRT* Algorithm Implementation
-### [configuration and lifecycle management](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L14-L51)
+### [configuration and lifecycle management](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L14-L51)
 
 - initalizes the RRTStar planner by setting up necessary parameters, such as the interpolation resolution and costmap.
 
-### [calculate radius](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L53-L77)
+### [calculate radius](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L53-L77)
 
 - calculateBallEadiusConstant computes a constant used for determining the ball radius during the rewire step, based on the free space in the costmap.
 - calculateBallRadius calculates the actual ball radius used to find nearby vertices during the rewire step. The radius is determined based on the size of the tree and ensures that it does not exceed a specified maximum connection distance.
 
- ### [vertices inside circle](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L79-L95)
+ ### [vertices inside circle](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L79-L95)
   
   - vertices_inside_circle the function returns a vector of indices representing the vertices that lie within the specified radius from the center point. This is done by iteratively following the parent pointers from the given vertex back to the start vertex.
   
-### [nearest neighbor and connectivity check](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L96-L131)
+### [nearest neighbor and connectivity check](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L96-L131)
 
 - calculate_distance this function calculates the Euclidean distance between a given point and a vertex in the tree.
 - nearest_neighbor this function finds the nearest vertex in the tree to a given point.
 - connectible checks whether a straight-line path between two vertices is free of obstacles. It determines the number of interpolation steps based on the distance and resolution, and then incrementally checks each point for obstacles in the costmap.
 
-### [calculate cost](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L133-L144)
+### [calculate cost](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L133-L144)
 - calculate_cost_from_start computes the total cost from the start vertex to a given vertex by summing the costs along the path.
 
-### [create plan](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L146-L195)
+### [create plan](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L146-L195)
 - createPlan function generates a path from the start pose to the goal pose using the RRT* algorithm.
 
-### [main loop](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L199-L254)
+### [main loop](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L199-L254)
 - in the main loop of createPlan function, the algorithm generates a random point within the costmap and creates a new vertex. It finds the nearest existing vertex in the tree, check if it's possible to connect them with a straight line and assigns it as the parent of the new vertex and calculates the cost to reach it. If the connection is possible, it calculates a ball radius to find nearby vertices, adds the new vertex to the tree, and calculates its total cost from the start. The algorithm then attempts to rewire the tree by finding more efficient paths through the new vertex to existing vertices or through existing vertices to the vertex. If the tree is rewired it's updating parent pointers and costs accordingly. If the path is obstructed, the new vertex is discarded, and the iterations is retired.
 
-### [returning the optimal path](https://github.com/mmcza/TurtleBot-RRT-Star/blob/d820402ae66da42e88c468be72f1da76d5bad2d7/src/rrtstar_planner.cpp#L258-L329)
+### [returning the optimal path](https://github.com/mmcza/TurtleBot-RRT-Star/blob/13fda74094936aa7177bf0a430c3239568ca510a/src/rrtstar_planner.cpp#L258-L329)
 
 If there is a total of 1000 vertices in the tree, the algorithm terminates the loop and proceeds to find the optimal path to the goal using the vertices that are in the tree by recursively going through parents of the vertices all the way to the start point. This ensures that the algorithm does not run indefinitely and provides a solution within a reasonable amount of time.
 
@@ -224,6 +257,12 @@ One of the possibilities is to experiment with the radius of the circle, because
 Other potential upgrade would be to use RRT* Informed algorithm and limit the space where new vertices are being added after the initial path is found.
 
 The structure of the tree could also be improved to make searching for vertices inside the circle faster. A good example would be to use a k-d tree.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
+
+Parts of the planner plugin boilerplate (`src/rrtstar_planner.cpp`, `include/nav2_rrtstar_planner/rrtstar_planner.hpp`) are derived from [nav2_straightline_planner](https://github.com/ros-navigation/navigation2_tutorials/tree/master/nav2_straightline_planner) by Shivang Patel, licensed under the BSD 3-Clause License. The original copyright notice is kept in the headers of those files.
 
 ## Reference
 

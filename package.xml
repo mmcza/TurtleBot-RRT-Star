@@ -4,8 +4,9 @@
   <name>nav2_rrtstar_planner</name>
   <version>1.0.0</version>
   <description>RRT Star path planner.</description>
+  <maintainer email="czajka.m.marcin@gmail.com">Marcin Czajka</maintainer>
   <maintainer email="daria.kubacka@student.put.poznan.pl">Daria Kubacka</maintainer>
-  <license>BSD-3-Clause</license>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
